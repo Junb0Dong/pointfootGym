@@ -147,6 +147,10 @@ class PointFootRoughCfg(BaseConfig):
             torques = -2.5e-05
             feet_distance = -100
             survival = 1
+            # feet_distance = -0.1  # 设置脚步距离奖励的权重
+            # feet_contact_balance = 1.0  # 设置脚步接触平衡的权重
+            # feet_contact_timing = 0.5  # 设置脚步接触同步性的权重
+
 
         base_height_target = 0.62
         soft_dof_pos_limit = 0.95  # percentage of urdf limits, values above this limit are penalized
@@ -241,7 +245,7 @@ class PointFootRoughCfgPPO(BaseConfig):
         policy_class_name = 'ActorCritic'
         algorithm_class_name = 'PPO'
         num_steps_per_env = 24  # per iteration
-        max_iterations = 100000  # number of policy updates
+        max_iterations = 10000  # number of policy updates
 
         # logging
         save_interval = 1000  # check for potential saves every this many iterations
