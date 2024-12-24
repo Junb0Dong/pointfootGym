@@ -1106,10 +1106,13 @@ class PointFoot:
 
     def _reward_torques(self):
         # Penalize torques
+
+        # self.torques shape: torch.Size([num_envs, 6])
         return torch.sum(torch.square(self.torques), dim=1)
 
     def _reward_dof_acc(self):
         # Penalize dof accelerations
+        # size: self.dof_vel: torch.Size([8192, 6])
         return torch.sum(torch.square((self.last_dof_vel - self.dof_vel) / self.dt), dim=1)
 
     def _reward_action_rate(self):
@@ -1139,37 +1142,37 @@ class PointFoot:
         rew_airTime = rew_airTime_below_min + rew_airTime_above_max
         return rew_airTime
 
-    # def _reward_feet_distance(self):
-    #     reward = 0
-    #     for i in range(self.feet_state.shape[1] - 1):
-    #         for j in range(i + 1, self.feet_state.shape[1]):
-    #             feet_distance = torch.norm(
-    #                 self.feet_state[:, i, :2] - self.feet_state[:, j, :2], dim=-1
-    #             )
-    #         reward += torch.clip(self.cfg.rewards.min_feet_distance - feet_distance, 0, 1)
-    #     return reward
+    def _reward_feet_distance(self):
+        reward = 0
+        for i in range(self.feet_state.shape[1] - 1):
+            for j in range(i + 1, self.feet_state.shape[1]):
+                feet_distance = torch.norm(
+                    self.feet_state[:, i, :2] - self.feet_state[:, j, :2], dim=-1
+                )
+            reward += torch.clip(self.cfg.rewards.min_feet_distance - feet_distance, 0, 1)
+        return reward
 
     def _reward_survival(self):
         return (~self.reset_buf).float()
 
-    # my rewards
-    def _reward_feet_distance(self):
-        # 奖励双腿之间有适当的距离
-        reward = 0
-        for i in range(self.feet_state.shape[1] - 1):
-            for j in range(i + 1, self.feet_state.shape[1]):
-                feet_distance = torch.norm(self.feet_state[:, i, :2] - self.feet_state[:, j, :2], dim=-1)
-                reward += torch.clip(self.cfg.rewards.min_feet_distance - feet_distance, 0, 1)
-        return reward
+    # # my rewards
+    # def _reward_feet_distance(self):
+    #     # 奖励双腿之间有适当的距离
+    #     reward = 0
+    #     for i in range(self.feet_state.shape[1] - 1):
+    #         for j in range(i + 1, self.feet_state.shape[1]):
+    #             feet_distance = torch.norm(self.feet_state[:, i, :2] - self.feet_state[:, j, :2], dim=-1)
+    #             reward += torch.clip(self.cfg.rewards.min_feet_distance - feet_distance, 0, 1)
+    #     return reward
     
-    def _reward_feet_contact_balance(self):
-        # 鼓励两条腿都有稳定的地面接触
-        contact_balance = torch.abs(self.contact_forces[:, self.feet_indices[0], 2] - self.contact_forces[:, self.feet_indices[1], 2])
-        return torch.sum(contact_balance, dim=1)
+    # def _reward_feet_contact_balance(self):
+    #     # 鼓励两条腿都有稳定的地面接触
+    #     contact_balance = torch.abs(self.contact_forces[:, self.feet_indices[0], 2] - self.contact_forces[:, self.feet_indices[1], 2])
+    #     return torch.sum(contact_balance, dim=1)
     
-    def _reward_feet_contact_timing(self):
-        # 奖励两条腿接触地面时机的同步性
-        contact_diff = torch.abs(self.feet_air_time[:, 0] - self.feet_air_time[:, 1])
-        return torch.exp(-contact_diff)  # 同步时，接触差异越小奖励越高
+    # def _reward_feet_contact_timing(self):
+    #     # 奖励两条腿接触地面时机的同步性
+    #     contact_diff = torch.abs(self.feet_air_time[:, 0] - self.feet_air_time[:, 1])
+    #     return torch.exp(-contact_diff)  # 同步时，接触差异越小奖励越高
 
 
