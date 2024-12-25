@@ -55,6 +55,10 @@ This repository provides a template for training point-foot legged robots, built
      - --max_iterations MAX_ITERATIONS:  Maximum number of training iterations.
 2. Play a trained policy:  
 ```python legged_gym/scripts/play.py --task=pointfoot_rough --load_run <run_name> --checkpoint <checkpoint>```
+
+such as:
+
+```python legged_gym/scripts/play.py --task=pointfoot_rough --load_run Dec24_23-55-00_ --checkpoint 10000```
     - By default, the loaded policy is the last model of the last run of the experiment folder.
     - Other runs/model iteration can be selected by setting `load_run` and `checkpoint` in the train config.
 

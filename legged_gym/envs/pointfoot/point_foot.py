@@ -1106,7 +1106,6 @@ class PointFoot:
 
     def _reward_torques(self):
         # Penalize torques
-
         # self.torques shape: torch.Size([num_envs, 6])
         return torch.sum(torch.square(self.torques), dim=1)
 
@@ -1155,20 +1154,64 @@ class PointFoot:
     def _reward_survival(self):
         return (~self.reset_buf).float()
 
-    # # my rewards
-    # def _reward_feet_distance(self):
-    #     # 奖励双腿之间有适当的距离
-    #     reward = 0
-    #     for i in range(self.feet_state.shape[1] - 1):
-    #         for j in range(i + 1, self.feet_state.shape[1]):
-    #             feet_distance = torch.norm(self.feet_state[:, i, :2] - self.feet_state[:, j, :2], dim=-1)
-    #             reward += torch.clip(self.cfg.rewards.min_feet_distance - feet_distance, 0, 1)
-    #     return reward
+    # ---------- my rewards ----------
+    def _reward_lin_vel_z(self):
+        # Penalize z axis base linear velocity
+        return torch.sum(self.base_lin_vel[:, 2])
     
+    def _reward_orientation(self):
+        # Penalize non flat base orientation
+        return torch.sum(torch.square(self.projected_gravity[:, :2]), dim=1)
+
+    def _reward_dof_vel(self):
+        # Penalize dof velocities
+        return torch.sum(torch.square(self.dof_vel), dim=1)
+
+    def _reward_termination(self):
+        # Terminal reward / penalty
+        return self.reset_buf * ~self.time_out_buf
+    
+    def _reward_dof_pos_limits(self):
+        # Penalize dof positions too close to the limit
+        out_of_limits = -(self.dof_pos - self.dof_pos_limits[:, 0]).clip(max=0.) # lower limit
+        out_of_limits += (self.dof_pos - self.dof_pos_limits[:, 1]).clip(min=0.)
+        return torch.sum(out_of_limits, dim=1)    
+
+    def _reward_dof_vel_limits(self):
+        # Penalize dof velocities too close to the limit
+        # clip to max error = 1 rad/s per joint to avoid huge penalties
+        return torch.sum((torch.abs(self.dof_vel) - self.dof_vel_limits*self.cfg.rewards.soft_dof_vel_limit).clip(min=0., max=1.), dim=1)
+
+    def _reward_torque_limits(self):
+        # penalize torques too close to the limit
+        return torch.sum((torch.abs(self.torques) - self.torque_limits*self.cfg.rewards.soft_torque_limit).clip(min=0.), dim=1)
+
+    def _reward_tracking_lin_vel(self):
+        # Tracking of linear velocity commands (xy axes)
+        lin_vel_error = torch.sum(torch.square(self.commands[:, :2] - self.base_lin_vel[:, :2]), dim=1)
+        return torch.exp(-lin_vel_error/self.cfg.rewards.tracking_sigma)
+    
+    def _reward_tracking_ang_vel(self):
+        # Tracking of angular velocity commands (yaw) 
+        ang_vel_error = torch.square(self.commands[:, 2] - self.base_ang_vel[:, 2])
+        return torch.exp(-ang_vel_error/self.cfg.rewards.tracking_sigma)
+    
+    def _reward_stumble(self):
+        # Penalize feet hitting vertical surfaces
+        return torch.any(torch.norm(self.contact_forces[:, self.feet_indices, :2], dim=2) >\
+             5 *torch.abs(self.contact_forces[:, self.feet_indices, 2]), dim=1)
+        
+    def _reward_stand_still(self):
+        # Penalize motion at zero commands
+        return torch.sum(torch.abs(self.dof_pos - self.default_dof_pos), dim=1) * (torch.norm(self.commands[:, :2], dim=1) < 0.1)
+
+    def _reward_feet_contact_forces(self):
+        # penalize high contact forces
+        return torch.sum((torch.norm(self.contact_forces[:, self.feet_indices, :], dim=-1) -  self.cfg.rewards.max_contact_force).clip(min=0.), dim=1)
     # def _reward_feet_contact_balance(self):
     #     # 鼓励两条腿都有稳定的地面接触
     #     contact_balance = torch.abs(self.contact_forces[:, self.feet_indices[0], 2] - self.contact_forces[:, self.feet_indices[1], 2])
-    #     return torch.sum(contact_balance, dim=1)
+    #     return torch.sum(contact_balance)
     
     # def _reward_feet_contact_timing(self):
     #     # 奖励两条腿接触地面时机的同步性
