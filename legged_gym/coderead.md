@@ -16,4 +16,7 @@ check the code and cfg define in `pointfoot_rough_config.py` and `pointfoot_fine
 the train main code in `rsl_rl/rsl_rl/runners/on_policy_runner.py`
 
 visualize the result in `tensorboard`
-`tensorboard --logdir=./`
+`tensorboard --logdir=./` 
+
+## code edit
+1. change `lin_vel_y = [-1.0, 1.0]`

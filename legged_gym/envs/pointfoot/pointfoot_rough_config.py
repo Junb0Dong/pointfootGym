@@ -46,7 +46,7 @@ class PointFootRoughCfg(BaseConfig):
 
         class ranges:
             lin_vel_x = [-1.0, 1.0]  # min max [m/s]
-            lin_vel_y = [-0.2, 0.2]  # min max [m/s]
+            lin_vel_y = [-1.0, 1.0]  # min max [m/s]
             ang_vel_yaw = [-1, 1]  # min max [rad/s]
             heading = [-3.14, 3.14]
 
@@ -278,10 +278,10 @@ class PointFootRoughCfgPPO(BaseConfig):
         policy_class_name = 'ActorCritic'
         algorithm_class_name = 'PPO'
         num_steps_per_env = 24  # per iteration
-        max_iterations = 5000  # number of policy updates
+        max_iterations = 2500  # number of policy updates
 
         # logging
-        save_interval = 1000  # check for potential saves every this many iterations
+        save_interval = 500  # check for potential saves every this many iterations
         experiment_name = 'pointfoot_rough'
         run_name = ''
         # load and resume
