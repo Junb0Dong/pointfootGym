@@ -14,3 +14,6 @@ no need debug or print
 check the code and cfg define in `pointfoot_rough_config.py` and `pointfoot_fine_config.py`
 
 the train main code in `rsl_rl/rsl_rl/runners/on_policy_runner.py`
+
+visualize the result in `tensorboard`
+`tensorboard --logdir=./`

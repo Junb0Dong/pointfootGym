@@ -137,33 +137,49 @@ class PointFootRoughCfg(BaseConfig):
 
     class rewards:
         class scales:
-            action_rate = -0.01
-            ang_vel_xy = -0.05
-            base_height = -2.0
-            collision = -50.0
-            dof_acc = -2.5e-07
-            # feet_air_time = 0.0
-            torque_limits = -0.1
-            torques = -2.5e-05
-            feet_distance = -100
-            survival = 1
+            # action_rate = -0.01
+            # ang_vel_xy = -0.05
+            # base_height = -2.0
+            # collision = -50.0
+            # dof_acc = -2.5e-07
+            # # feet_air_time = 0.0
+            # torque_limits = -0.1
+            # torques = -2.5e-05
+            # feet_distance = -100
+            # survival = 1
  
-            # my reward 
-            # feet_distance = -0.1  # 设置脚步距离奖励的权重
-            # feet_contact_balance = 1.0  # 设置脚步接触平衡的权重
-            # feet_contact_timing = 0.5  # 设置脚步接触同步性的权重
+            # # my reward 
+            # # feet_distance = -0.1  # 设置脚步距离奖励的权重
+            # # feet_contact_balance = 1.0  # 设置脚步接触平衡的权重
+            # # feet_contact_timing = 0.5  # 设置脚步接触同步性的权重
+            # termination = -0.0
+            # tracking_lin_vel = 1.0
+            # tracking_ang_vel = 0.5
+            # lin_vel_z = -2.0
+            # # ang_vel_xy = -0.05
+            # orientation = -0.
+            # # torques = -0.00001
+            # dof_vel = -0.
+            # dof_acc = -2.5e-7
+            # # base_height = -0. 
+            # feet_air_time =  1.0
+            # # collision = -1.
+            # feet_stumble = -0.0 
+            # action_rate = -0.01
+            # stand_still = -0.
+
             termination = -0.0
             tracking_lin_vel = 1.0
             tracking_ang_vel = 0.5
             lin_vel_z = -2.0
-            # ang_vel_xy = -0.05
+            ang_vel_xy = -0.05
             orientation = -0.
-            # torques = -0.00001
+            torques = -0.00001
             dof_vel = -0.
             dof_acc = -2.5e-7
-            # base_height = -0. 
+            base_height = -0. 
             feet_air_time =  1.0
-            # collision = -1.
+            collision = -1.
             feet_stumble = -0.0 
             action_rate = -0.01
             stand_still = -0.
@@ -262,7 +278,7 @@ class PointFootRoughCfgPPO(BaseConfig):
         policy_class_name = 'ActorCritic'
         algorithm_class_name = 'PPO'
         num_steps_per_env = 24  # per iteration
-        max_iterations = 10000  # number of policy updates
+        max_iterations = 5000  # number of policy updates
 
         # logging
         save_interval = 1000  # check for potential saves every this many iterations

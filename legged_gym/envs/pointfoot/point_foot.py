@@ -765,9 +765,9 @@ class PointFoot:
         for key in list(self.reward_scales.keys()):
             scale = self.reward_scales[key]
             if scale == 0:
-                self.reward_scales.pop(key)
+                self.reward_scales.pop(key) # remove zero the reward which has a zero scale
             else:
-                self.reward_scales[key] *= self.dt
+                self.reward_scales[key] *= self.dt # for non zero multiply by dt
         # prepare list of functions
         self.reward_functions = []
         self.reward_names = []
