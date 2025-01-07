@@ -49,7 +49,7 @@ class PointFootRoughCfg(BaseConfig):
             ang_vel_yaw = [-1, 1]  # min max [rad/s]
             heading = [-3.14, 3.14]
 
-    # executing the command when play.py
+    # # executing the command when play.py
     # class commands:
     #     curriculum = False
     #     max_curriculum = 1.
@@ -58,7 +58,7 @@ class PointFootRoughCfg(BaseConfig):
     #     heading_command = False  # 不需要航向控制
 
     #     class ranges:
-    #         lin_vel_x = [1.0, 1.0]  # 固定为直线行走，1.0 m/s
+    #         lin_vel_x = [0.5, 1.0]  # 固定为直线行走，1.0 m/s
     #         lin_vel_y = [0.0, 0.0]  # 横向速度为 0
     #         ang_vel_yaw = [0.0, 0.0]  # 不需要角速度
     #         heading = [0.0, 0.0]  # 航向保持不变
