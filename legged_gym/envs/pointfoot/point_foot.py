@@ -709,7 +709,7 @@ class PointFoot:
         self.commands_scale = torch.tensor([self.obs_scales.lin_vel, self.obs_scales.lin_vel, self.obs_scales.ang_vel],
                                            device=self.device, requires_grad=False, )  # TODO change this
         self.feet_air_time = torch.zeros(self.num_envs, self.feet_indices.shape[0], dtype=torch.float,
-                                         device=self.device, requires_grad=False)
+                                         device=self.device, requires_grad=False) # shape: num_envs, num_feet
         self.last_feet_air_time = torch.zeros(self.num_envs, self.feet_indices.shape[0], dtype=torch.float,
                                               device=self.device, requires_grad=False)
         self.contact_filt = torch.zeros(self.num_envs, self.feet_indices.shape[0], dtype=torch.bool,
@@ -1091,71 +1091,7 @@ class PointFoot:
         self.first_contact = (self.feet_air_time > 0.) * self.contact_filt
         self.feet_air_time += self.dt
 
-    # # ------------ reward functions----------------
-    # # 惩罚基础角速度的 XY 分量，保持身体稳定
-    # def _reward_ang_vel_xy(self):
-    #     # Penalize xy axes base angular velocity
-    #     # base_ang_veo shape: num_envs, 3
-    #     return torch.sum(torch.square(self.base_ang_vel[:, :2]), dim=1) #  计算基坐标轴的xy轴角速度的平方和
-
-    # def _reward_base_height(self):
-    #     # Penalize base height away from target
-    #     # root_states shape: torch.Size([num_envs, 3]) measured_heights shape: torch.Size([num_envs, 121])
-    #     base_height = torch.mean(self.root_states[:, 2].unsqueeze(1) - self.measured_heights, dim=1)
-    #     return torch.square(base_height - self.cfg.rewards.base_height_target)
-
-    # def _reward_torques(self):
-    #     # Penalize torques
-    #     # self.torques shape: torch.Size([num_envs, 6])
-    #     return torch.sum(torch.square(self.torques), dim=1)
-
-    # def _reward_dof_acc(self):
-    #     # Penalize dof accelerations
-    #     # size: self.dof_vel: torch.Size([8192, 6])
-    #     return torch.sum(torch.square((self.last_dof_vel - self.dof_vel) / self.dt), dim=1)
-
-    # def _reward_action_rate(self):
-    #     # Penalize changes in actions
-    #     return torch.sum(torch.square(self.last_actions - self.actions), dim=1)
-
-    # def _reward_collision(self):
-    #     # Penalize collisions on selected bodies
-    #     return torch.sum(1. * (torch.norm(self.contact_forces[:, self.penalised_contact_indices, :], dim=-1) > 0.1),
-    #                      dim=1)
-
-    # def _reward_torque_limits(self):
-    #     # penalize torques too close to the limit
-    #     return torch.sum(
-    #         (torch.abs(self.torques) - self.torque_limits * self.cfg.rewards.soft_torque_limit).clip(min=0.), dim=1)
-
-    # def _reward_feet_air_time(self):
-    #     # Reward steps between proper duration
-    #     rew_airTime_below_min = torch.sum(
-    #         torch.min(self.feet_air_time - self.cfg.rewards.min_feet_air_time,
-    #                   torch.zeros_like(self.feet_air_time)) * self.first_contact,
-    #         dim=1)
-    #     rew_airTime_above_max = torch.sum(
-    #         torch.min(self.cfg.rewards.max_feet_air_time - self.feet_air_time,
-    #                   torch.zeros_like(self.feet_air_time)) * self.first_contact,
-    #         dim=1)
-    #     rew_airTime = rew_airTime_below_min + rew_airTime_above_max
-    #     return rew_airTime
-
-    # def _reward_feet_distance(self):
-    #     reward = 0
-    #     for i in range(self.feet_state.shape[1] - 1):
-    #         for j in range(i + 1, self.feet_state.shape[1]):
-    #             feet_distance = torch.norm(
-    #                 self.feet_state[:, i, :2] - self.feet_state[:, j, :2], dim=-1
-    #             )
-    #         reward += torch.clip(self.cfg.rewards.min_feet_distance - feet_distance, 0, 1)
-    #     return reward
-
-    # def _reward_survival(self):
-    #     return (~self.reset_buf).float()
-
-    # ---------- my rewards ----------
-    #------------ reward functions----------------
+    # ------------ reward functions----------------
     def _reward_lin_vel_z(self):
         # Penalize z axis base linear velocity
         return torch.square(self.base_lin_vel[:, 2])
@@ -1170,7 +1106,7 @@ class PointFoot:
 
     def _reward_base_height(self):
         # Penalize base height away from target
-        base_height = self.root_states[:, 2]
+        base_height = torch.mean(self.root_states[:, 2].unsqueeze(1) - self.measured_heights, dim=1)
         return torch.square(base_height - self.cfg.rewards.base_height_target)
     
     def _reward_torques(self):
@@ -1212,21 +1148,24 @@ class PointFoot:
         # penalize torques too close to the limit
         return torch.sum((torch.abs(self.torques) - self.torque_limits*self.cfg.rewards.soft_torque_limit).clip(min=0.), dim=1)
 
+    # tracking reward = exp(-error^2/sigma)
     def _reward_tracking_lin_vel(self):
         # Tracking of linear velocity commands (xy axes)
         lin_vel_error = torch.sum(torch.square(self.commands[:, :2] - self.base_lin_vel[:, :2]), dim=1)
         return torch.exp(-lin_vel_error/self.cfg.rewards.tracking_sigma)
     
+    # tracking reward = exp(-error^2/sigma)
     def _reward_tracking_ang_vel(self):
         # Tracking of angular velocity commands (yaw) 
         ang_vel_error = torch.square(self.commands[:, 2] - self.base_ang_vel[:, 2])
         return torch.exp(-ang_vel_error/self.cfg.rewards.tracking_sigma)
 
+    # reward abput air time of feet
     def _reward_feet_air_time(self):
         # Reward long steps
         # Need to filter the contacts because the contact reporting of PhysX is unreliable on meshes
-        contact = self.contact_forces[:, self.feet_indices, 2] > 1.
-        contact_filt = torch.logical_or(contact, self.last_contacts) 
+        contact = self.contact_forces[:, self.feet_indices, 2] > 1. # contact on the feet with the ground
+        contact_filt = torch.logical_or(contact, self.last_contacts)    # filter contacts aganist unreliable contact reporting
         self.last_contacts = contact
         first_contact = (self.feet_air_time > 0.) * contact_filt
         self.feet_air_time += self.dt

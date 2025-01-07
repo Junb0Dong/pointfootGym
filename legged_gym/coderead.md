@@ -19,4 +19,8 @@ visualize the result in `tensorboard`
 `tensorboard --logdir=./` 
 
 ## code edit
-1. change `lin_vel_y = [-1.0, 1.0]`
+- change `lin_vel_y = [-1.0, 1.0]`
+- Dec27 20:52 Modify reward:
+  1. `ang_vel_xy` 0.005 ---> 0.2
+  2. `collision` 1.0 ---> -1.5
+  3. `feet_air_time` 1.0 ---> 2.0

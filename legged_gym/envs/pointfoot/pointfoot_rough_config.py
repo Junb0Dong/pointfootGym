@@ -11,7 +11,7 @@ class PointFootRoughCfg(BaseConfig):
         episode_length_s = 20  # episode length in seconds
 
     class terrain:
-        mesh_type = 'trimesh'  # "heightfield" # none, plane, heightfield or trimesh
+        mesh_type = 'trimesh'#'plane'  # "heightfield" # none, plane, heightfield or trimesh
         horizontal_scale = 0.1  # [m]
         vertical_scale = 0.005  # [m]
         border_size = 25  # [m]
@@ -22,8 +22,7 @@ class PointFootRoughCfg(BaseConfig):
         # rough terrain only:
         measure_heights_actor = False
         measure_heights_critic = True
-        measured_points_x = [-0.5, -0.4, -0.3, -0.2, -0.1, 0., 0.1, 0.2, 0.3, 0.4,
-                             0.5]  # 1mx1m rectangle (without center line)
+        measured_points_x = [-0.5, -0.4, -0.3, -0.2, -0.1, 0., 0.1, 0.2, 0.3, 0.4, 0.5]  # 1mx1m rectangle (without center line)
         measured_points_y = [-0.5, -0.4, -0.3, -0.2, -0.1, 0., 0.1, 0.2, 0.3, 0.4, 0.5]
         selected = False  # select a unique terrain type and pass all arguments
         terrain_kwargs = None  # Dict of arguments for selected terrain
@@ -49,6 +48,21 @@ class PointFootRoughCfg(BaseConfig):
             lin_vel_y = [-1.0, 1.0]  # min max [m/s]
             ang_vel_yaw = [-1, 1]  # min max [rad/s]
             heading = [-3.14, 3.14]
+
+    # executing the command when play.py
+    # class commands:
+    #     curriculum = False
+    #     max_curriculum = 1.
+    #     num_commands = 4
+    #     resampling_time = 10.
+    #     heading_command = False  # 不需要航向控制
+
+    #     class ranges:
+    #         lin_vel_x = [1.0, 1.0]  # 固定为直线行走，1.0 m/s
+    #         lin_vel_y = [0.0, 0.0]  # 横向速度为 0
+    #         ang_vel_yaw = [0.0, 0.0]  # 不需要角速度
+    #         heading = [0.0, 0.0]  # 航向保持不变
+
 
     class init_state:
         pos = [0.0, 0.0, 0.62]  # x,y,z [m]
@@ -137,53 +151,21 @@ class PointFootRoughCfg(BaseConfig):
 
     class rewards:
         class scales:
-            # action_rate = -0.01
-            # ang_vel_xy = -0.05
-            # base_height = -2.0
-            # collision = -50.0
-            # dof_acc = -2.5e-07
-            # # feet_air_time = 0.0
-            # torque_limits = -0.1
-            # torques = -2.5e-05
-            # feet_distance = -100
-            # survival = 1
- 
-            # # my reward 
-            # # feet_distance = -0.1  # 设置脚步距离奖励的权重
-            # # feet_contact_balance = 1.0  # 设置脚步接触平衡的权重
-            # # feet_contact_timing = 0.5  # 设置脚步接触同步性的权重
-            # termination = -0.0
-            # tracking_lin_vel = 1.0
-            # tracking_ang_vel = 0.5
-            # lin_vel_z = -2.0
-            # # ang_vel_xy = -0.05
-            # orientation = -0.
-            # # torques = -0.00001
-            # dof_vel = -0.
-            # dof_acc = -2.5e-7
-            # # base_height = -0. 
-            # feet_air_time =  1.0
-            # # collision = -1.
-            # feet_stumble = -0.0 
-            # action_rate = -0.01
-            # stand_still = -0.
-
             termination = -0.0
-            tracking_lin_vel = 2.0
-            tracking_ang_vel = 1.0
-            lin_vel_z = -1.0
-            ang_vel_xy = -0.5
+            tracking_lin_vel = 1.0
+            tracking_ang_vel = 0.5
+            lin_vel_z = -2.0
+            ang_vel_xy = -0.05
             orientation = -0.
             torques = -0.00001
             dof_vel = -0.
             dof_acc = -2.5e-7
             base_height = -0. 
-            feet_air_time =  1.0
-            collision = -1.
+            feet_air_time =  1.1
+            collision = -1.   
             feet_stumble = -0.0 
             action_rate = -0.01
             stand_still = -0.
-
 
         base_height_target = 0.62
         soft_dof_pos_limit = 0.95  # percentage of urdf limits, values above this limit are penalized
@@ -278,10 +260,10 @@ class PointFootRoughCfgPPO(BaseConfig):
         policy_class_name = 'ActorCritic'
         algorithm_class_name = 'PPO'
         num_steps_per_env = 24  # per iteration
-        max_iterations = 3000  # number of policy updates
+        max_iterations = 5000  # number of policy updates
 
         # logging
-        save_interval = 500  # check for potential saves every this many iterations
+        save_interval = 1000  # check for potential saves every this many iterations
         experiment_name = 'pointfoot_rough'
         run_name = ''
         # load and resume
