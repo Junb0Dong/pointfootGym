@@ -871,6 +871,10 @@ class PointFoot:
         self.num_bodies = len(body_names)
         self.num_dofs = len(self.dof_names)
         feet_names = [s for s in body_names if self.cfg.asset.foot_name in s]
+
+        # add abad_names for abad indices
+        abad_names = [s for s in body_names if self.cfg.asset.abad_name in s]
+
         penalized_contact_names = []
         for name in self.cfg.asset.penalize_contacts_on:
             penalized_contact_names.extend([s for s in body_names if name in s])
@@ -915,6 +919,11 @@ class PointFoot:
         for i in range(len(feet_names)):
             self.feet_indices[i] = self.gym.find_actor_rigid_body_handle(self.envs[0], self.actor_handles[0],
                                                                          feet_names[i])
+        # init abad
+        self.abad_indices = torch.zeros(len(abad_names), dtype=torch.long, device=self.device, requires_grad=False)
+        for i in range(len(abad_names)):
+            self.abad_indices[i] = self.gym.find_actor_rigid_body_handle(self.envs[0], self.actor_handles[0],
+                                                                         abad_names[i])
 
         self.penalised_contact_indices = torch.zeros(len(penalized_contact_names), dtype=torch.long, device=self.device,
                                                      requires_grad=False)
@@ -1175,7 +1184,7 @@ class PointFoot:
         self.feet_air_time *= ~contact_filt
         return rew_airTime
     
-    def _reward_stumble(self):
+    def _reward_feet_stumble(self):
         # Penalize feet hitting vertical surfaces
         return torch.any(torch.norm(self.contact_forces[:, self.feet_indices, :2], dim=2) >\
              5 *torch.abs(self.contact_forces[:, self.feet_indices, 2]), dim=1)
@@ -1187,3 +1196,35 @@ class PointFoot:
     def _reward_feet_contact_forces(self):
         # penalize high contact forces
         return torch.sum((torch.norm(self.contact_forces[:, self.feet_indices, :], dim=-1) -  self.cfg.rewards.max_contact_force).clip(min=0.), dim=1)
+    
+    def _reward_alignment(self):
+        """
+        计算脚部与对应 Abad 关节的对齐奖励（横向 y 方向）。
+        """
+        # 提取脚部和 Abad 关节位置
+        foot_positions = self.rigid_body_states[:, self.feet_indices, :3]  # 脚部位置 (x, y, z)
+        abad_positions = self.rigid_body_states[:, self.abad_indices, :3]  # Abad 关节位置 (x, y, z)
+
+        # 计算 y 方向的对齐误差
+        foot_y = foot_positions[:, :, 1]  # 提取脚部 y 坐标
+        abad_y = abad_positions[:, :, 1]  # 提取 Abad y 坐标
+        alignment_error = torch.abs(foot_y - abad_y)  # 计算对齐误差
+
+        # 计算对齐惩罚
+        reward_alignment = torch.sum(alignment_error, dim=1)  # 总误差惩罚
+        return reward_alignment
+    
+    def _reward_foot_height(self):
+        """
+        计算脚步高度奖励，鼓励脚部高度超过楼梯台阶高度。
+        """
+        # 提取脚部 z 方向位置
+        foot_positions = self.rigid_body_states[:, self.feet_indices, :3]  # 脚部位置 (x, y, z)
+        foot_z = foot_positions[:, :, 2]  # 提取脚部 z 坐标
+
+        # 设置楼梯台阶高度阈值
+        threshold = self.cfg.rewards.base_height_target * 0.2  # 台阶高度
+
+        # 计算高度奖励
+        reward_foot_height = torch.sum(torch.maximum(foot_z - threshold, torch.tensor(0.0, device=self.device)), dim=1)
+        return reward_foot_height
