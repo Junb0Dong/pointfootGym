@@ -441,11 +441,36 @@ class PointFoot:
             props[0].com.z += np.random.uniform(-com_z, com_z)
         return props
 
+    def update_feet_state(self):
+        self.gym.refresh_rigid_body_state_tensor(self.sim)
+        
+        self.feet_state = self.rigid_body_states[:, self.feet_indices, :]
+        self.feet_pos = self.feet_state[:, :, :3]
+        self.feet_vel = self.feet_state[:, :, 7:10]
+        # # debug for indices
+        # print("********************************************************************")
+        # # print(f"Feet names: {[body_names[i] for i in self.feet_indices]}")
+        # print(f"Feet positions: {self.feet_pos}")
+        # print(f"Feet velocities: {self.feet_vel}")
+        # print("********************************************************************")
+
+
     def _post_physics_step_callback(self):
         """ Callback called before computing terminations, rewards, and observations
             Default behaviour: Compute ang vel command based on target and heading, compute measured terrain heights and randomly push robots
         """
-        #
+
+        # update feet state from unitree h1
+        self.update_feet_state()
+
+        period = 0.8
+        offset = 0.5
+        self.phase = (self.episode_length_buf * self.dt) % period / period
+        self.phase_left = self.phase
+        self.phase_right = (self.phase + offset) % 1
+        self.leg_phase = torch.cat([self.phase_left.unsqueeze(1), self.phase_right.unsqueeze(1)], dim=-1)
+
+        # original code 
         env_ids = (self.episode_length_buf % int(self.cfg.commands.resampling_time / self.dt) == 0).nonzero(
             as_tuple=False).flatten()
         self._resample(env_ids)
@@ -677,6 +702,11 @@ class PointFoot:
         self.root_states = gymtorch.wrap_tensor(actor_root_state)
         self.dof_state = gymtorch.wrap_tensor(dof_state_tensor)
         self.dof_pos = self.dof_state.view(self.num_envs, self.num_dof, 2)[..., 0]
+        # # debug for pos
+        # print("********************************************************************")
+        # for i, name in enumerate(self.dof_names):
+        #     print(f"DOF {i}: {name}")
+        # print("********************************************************************")
         self.dof_vel = self.dof_state.view(self.num_envs, self.num_dof, 2)[..., 1]
         self.base_quat = self.root_states[:, 3:7]
         self.rigid_body_states = gymtorch.wrap_tensor(rigid_body_state).view(
@@ -1105,7 +1135,7 @@ class PointFoot:
     def _reward_lin_vel_z(self):
         # Penalize z axis base linear velocity
         return torch.square(self.base_lin_vel[:, 2])
-    
+
     def _reward_ang_vel_xy(self):
         # Penalize xy axes base angular velocity
         return torch.sum(torch.square(self.base_ang_vel[:, :2]), dim=1)
@@ -1186,12 +1216,18 @@ class PointFoot:
     
     def _reward_feet_stumble(self):
         # Penalize feet hitting vertical surfaces
-        return torch.any(torch.norm(self.contact_forces[:, self.feet_indices, :2], dim=2) >\
-             5 *torch.abs(self.contact_forces[:, self.feet_indices, 2]), dim=1)
+        # 水平接触力 > 5 × 垂直接触力
+        return torch.any(torch.norm(self.contact_forces[:, self.feet_indices, :2], dim=2) > 5 *torch.abs(self.contact_forces[:, self.feet_indices, 2]), dim=1)
         
     def _reward_stand_still(self):
         # Penalize motion at zero commands
-        return torch.sum(torch.abs(self.dof_pos - self.default_dof_pos), dim=1) * (torch.norm(self.commands[:, :2], dim=1) < 0.1)
+        lin_vel = torch.norm(self.base_lin_vel[:, :2], dim=1)
+        ang_vel = torch.norm(self.base_ang_vel, dim=1)
+
+        lin_vel_penalty = torch.square(lin_vel)
+        ang_vel_penalty = torch.square(ang_vel)
+
+        return (lin_vel_penalty + ang_vel_penalty) * (torch.norm(self.commands[:, :2], dim=1) < 0.1)
 
     def _reward_feet_contact_forces(self):
         # penalize high contact forces
@@ -1228,3 +1264,49 @@ class PointFoot:
         # 计算高度奖励
         reward_foot_height = torch.sum(torch.maximum(foot_z - threshold, torch.tensor(0.0, device=self.device)), dim=1)
         return reward_foot_height
+
+    # 惩罚脚部高度变化
+    def _reward_feet_stability(self):
+        # 提取脚部 z 方向位置
+        # foot_positions = self.rigid_body_states[:, self.feet_indices, :3]  # 脚部位置 (x, y, z)
+        return torch.sum(torch.var(self.rigid_body_states[:, self.feet_indices, 2], dim=1)) # var: 方差
+    
+    def _reward_feet_swing_height(self):
+        contact = torch.norm(self.contact_forces[:, self.feet_indices, :3], dim=2) > 1.
+        # 设置楼梯台阶高度阈值
+        threshold = self.cfg.rewards.base_height_target * 0.15  # 台阶高度
+        pos_error = torch.square(self.rigid_body_states[:, self.feet_indices, 2] - threshold) * ~contact
+        return torch.sum(pos_error, dim=(1))
+    
+    def _reward_hip_pos(self):
+        return torch.sum(torch.square(self.dof_pos[:, [1, 4]]), dim=1)
+    
+    def _reward_contact(self):
+        res = torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
+        for i in range(2):
+            self.leg_phase = torch.cat([self.phase_left.unsqueeze(1), self.phase_right.unsqueeze(1)], dim=-1)
+            is_stance = self.leg_phase[:, i] < 0.55
+            contact = self.contact_forces[:, self.feet_indices[i], 2] > 1
+            res += ~(contact ^ is_stance) # ^ is XOR operator
+        return res
+
+    def _reward_position_stability(self):
+        # 获取当前线速度
+        lin_vel = self.base_lin_vel[:, :2]  # x 和 y 方向速度
+
+        # 获取机器人当前位置
+        current_position = self.root_states[:, :2]  # 提取 x 和 y 位置
+
+        # 初始参考位置 (需要在仿真初始化时记录一次)
+        if not hasattr(self, 'ref_position'):
+            self.ref_position = current_position.clone()
+
+        # 计算当前位置与参考位置的偏差
+        position_error = torch.norm(current_position - self.ref_position, dim=1)
+
+        # # 设置速度门槛，仅在机器人接近静止时计算位置偏移奖励
+        # speed_threshold = 0.1  # 速度阈值
+        # is_stationary = torch.norm(lin_vel, dim=1) < speed_threshold
+
+        # 奖励函数：位置偏移的平方，偏移越小奖励越高
+        return torch.square(position_error) * torch.norm(self.commands[:, :2], dim=1) < 0.1

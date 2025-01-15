@@ -18,13 +18,17 @@ class PointfootController:
         # Initialize robot and type information
         self.robot = robot
         self.robot_type = robot_type
-        self.is_point_foot = self.robot_type.startswith("PF")
+        self.is_point_foot = self.robot_type.startswith("PF") #  判断机器人类型是否以"PF"开头，如果是，则将is_point_foot设置为True
         self.is_wheel_foot = self.robot_type.startswith("WF")
         self.is_sole_foot = self.robot_type.startswith("SF")
 
         # Load configuration and model file paths based on robot type
         self.config_file = f'{model_dir}/{self.robot_type}/params.yaml'
         self.model_file = f'{model_dir}/{self.robot_type}/policy/policy.onnx'
+
+        # debug, test passed
+        print(f"config_file: {self.config_file}")
+        print(f"model_file: {self.model_file}")
 
         # Load configuration settings from the YAML file
         self.load_config(self.config_file)
@@ -132,8 +136,8 @@ class PointfootController:
           time.sleep(1)
 
         # Initialize default joint angles for standing
-        self.default_joint_angles = np.array([0.0] * len(self.joint_names))
-        self.stand_percent += 1 / (self.stand_duration * self.loop_frequency)
+        self.default_joint_angles = np.array([0.0] * len(self.joint_names))  #  初始化默认关节角度为0
+        self.stand_percent += 1 / (self.stand_duration * self.loop_frequency) #  计算站立百分比
         self.mode = "STAND"
         self.loop_count = 0
 
@@ -401,21 +405,23 @@ if __name__ == '__main__':
 
     # Create a Robot instance of the specified type
     robot = Robot(RobotType.PointFoot)
-
+    
     # Default IP address for the robot
     robot_ip = "127.0.0.1"
-    
+
     # Check if command-line argument is provided for robot IP
     if len(sys.argv) > 1:
         robot_ip = sys.argv[1]
 
     # Initialize the robot with the provided IP address
     if not robot.init(robot_ip):
+        print("Robot initialization failed.")
         sys.exit()
 
     # Determine if the simulation is running
     start_controller = robot_ip == "127.0.0.1"
 
+    print(f"Start controller: {start_controller}")
     # Create and run the PointfootController
     controller = PointfootController(f'{os.path.dirname(os.path.abspath(__file__))}/policy', robot, robot_type, start_controller)
     controller.run()

@@ -28,40 +28,40 @@ class PointFootRoughCfg(BaseConfig):
         terrain_kwargs = None  # Dict of arguments for selected terrain
         max_init_terrain_level = 2  # starting curriculum state 降低初始复杂度
         terrain_length = 8.
-        terrain_width = 8.
+        terrain_width = 8.0 
         num_rows = 10  # number of terrain rows (levels)
         num_cols = 20  # number of terrain cols (types)
         # terrain types: [smooth slope, rough slope, stairs up, stairs down, discrete]
         terrain_proportions = [0.1, 0.1, 0.35, 0.25, 0.2]
         # trimesh only:
-        slope_treshold = 1.0  # slopes above this threshold will be corrected to vertical surfaces 增加坡度阈值，减少过陡坡度
+        slope_treshold = 0.8  # slopes above this threshold will be corrected to vertical surfaces 增加坡度阈值，减少过陡坡度
 
-    # class commands:
-    #     curriculum = False
-    #     max_curriculum = 1.
-    #     num_commands = 4  # default: lin_vel_x, lin_vel_y, ang_vel_yaw, heading (in heading mode ang_vel_yaw is recomputed from heading error)
-    #     resampling_time = 10.  # time before command are changed[s]
-    #     heading_command = True  # if true: compute ang vel command from heading error
-
-    #     class ranges:
-    #         lin_vel_x = [-1.0, 1.0]  # min max [m/s]
-    #         lin_vel_y = [-1.0, 1.0]  # min max [m/s]
-    #         ang_vel_yaw = [-1, 1]  # min max [rad/s]
-    #         heading = [-3.14, 3.14]
-
-    # executing the command when play.py
     class commands:
         curriculum = False
         max_curriculum = 1.
-        num_commands = 4
-        resampling_time = 10.
-        heading_command = False  # 不需要航向控制
+        num_commands = 4  # default: lin_vel_x, lin_vel_y, ang_vel_yaw, heading (in heading mode ang_vel_yaw is recomputed from heading error)
+        resampling_time = 10.  # time before command are changed[s]
+        heading_command = True  # if true: compute ang vel command from heading error
 
         class ranges:
-            lin_vel_x = [1.0, 1.0]  # 固定为直线行走，1.0 m/s
-            lin_vel_y = [0.0, 0.0]  # 横向速度为 0
-            ang_vel_yaw = [0.0, 0.0]  # 不需要角速度
-            heading = [0.0, 0.0]  # 航向保持不变
+            lin_vel_x = [-1.0, 1.0]  # min max [m/s]
+            lin_vel_y = [-1.0, 1.0]  # min max [m/s]
+            ang_vel_yaw = [-1, 1]  # min max [rad/s]
+            heading = [-3.14, 3.14]
+
+    # # executing the command when play.py
+    # class commands:
+    #     curriculum = False
+    #     max_curriculum = 1.
+    #     num_commands = 4
+    #     resampling_time = 10.
+    #     heading_command = False  # 不需要航向控制
+
+    #     class ranges:
+    #         lin_vel_x = [0, 0]  # 固定为直线行走，1.0 m/s
+    #         lin_vel_y = [0.0, 0.0]  # 横向速度为 0
+    #         ang_vel_yaw = [0.0, 0.0]  # 不需要角速度
+    #         heading = [0.0, 0.0]  # 航向保持不变
 
 
     class init_state:
@@ -152,23 +152,51 @@ class PointFootRoughCfg(BaseConfig):
 
     class rewards:
         class scales:
+            # termination = -0.0
+            # tracking_lin_vel = 1.0
+            # tracking_ang_vel = 0.7  # 增加角速度跟踪权重
+            # lin_vel_z = -2.0
+            # ang_vel_xy = -0.2
+            # orientation = -1.0 # -1.0 => -2.0
+            # torques = -0.00001
+            # dof_vel = -0.
+            # dof_acc = -3e-7   # 略微增加关节加速度惩罚
+            # base_height = -5.0 # -1.0 => -5.0
+            # # feet_air_time = 0.5-0.5
+            # collision = -0.8     # 降低碰撞惩罚权重
+            # feet_stumble = -0.01 
+            # # action_rate = -0.05 # 增强动作平滑性权重
+            # # stand_still = -1 # dof keep still is difficult, instead of dof still, change to position keep still
+            # # position_stability = -0.5
+            # alignment = -1 # -0.1 => -0.5
+            # # foot_height = 0.6   # 增强步态奖励
+            # # feet_stability = -0.01
+            # feet_swing_height = -5.0 # h1 reward for swing foot height -1.0 => -10.0
+            # # hip_pos = -0.3 # h1 reward for hip position
+            # contact = 0.18
+
+            # success version 01
             termination = -0.0
             tracking_lin_vel = 1.0
             tracking_ang_vel = 0.7  # 增加角速度跟踪权重
-            # lin_vel_z = -2.0
-            # ang_vel_xy = -0.08
-            orientation = -0.
+            lin_vel_z = -1.0
+            ang_vel_xy = -0.1
+            orientation = -1.0
             torques = -0.00001
             dof_vel = -0.
             dof_acc = -3e-7   # 略微增加关节加速度惩罚
-            base_height = -0. 
+            base_height = -1.0 
             # feet_air_time = 0.5
             collision = -0.8     # 降低碰撞惩罚权重
             feet_stumble = -0.01 
             action_rate = -0.05 # 增强动作平滑性权重
-            stand_still = -0.
-            alignment = -0.1
-            foot_height = 0.6   # 增强步态奖励
+            stand_still = -1.0
+            alignment = -0.5
+            foot_height = 1.0
+            # feet_swing_height = -20.0   # 增强步态奖励
+            contact = 0.18
+            # position_stability = -1
+
 
         base_height_target = 0.62
         soft_dof_pos_limit = 0.95  # percentage of urdf limits, values above this limit are penalized
