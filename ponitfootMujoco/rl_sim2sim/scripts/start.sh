@@ -1,0 +1,1 @@
+export ROBOT_TYPE=PF_TRON1A

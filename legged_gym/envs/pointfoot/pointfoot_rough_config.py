@@ -36,32 +36,32 @@ class PointFootRoughCfg(BaseConfig):
         # trimesh only:
         slope_treshold = 0.8  # slopes above this threshold will be corrected to vertical surfaces 增加坡度阈值，减少过陡坡度
 
-    class commands:
-        curriculum = False
-        max_curriculum = 1.
-        num_commands = 4  # default: lin_vel_x, lin_vel_y, ang_vel_yaw, heading (in heading mode ang_vel_yaw is recomputed from heading error)
-        resampling_time = 10.  # time before command are changed[s]
-        heading_command = True  # if true: compute ang vel command from heading error
-
-        class ranges:
-            lin_vel_x = [-1.0, 1.0]  # min max [m/s]
-            lin_vel_y = [-1.0, 1.0]  # min max [m/s]
-            ang_vel_yaw = [-1, 1]  # min max [rad/s]
-            heading = [-3.14, 3.14]
-
-    # # executing the command when play.py
     # class commands:
     #     curriculum = False
     #     max_curriculum = 1.
-    #     num_commands = 4
-    #     resampling_time = 10.
-    #     heading_command = False  # 不需要航向控制
+    #     num_commands = 4  # default: lin_vel_x, lin_vel_y, ang_vel_yaw, heading (in heading mode ang_vel_yaw is recomputed from heading error)
+    #     resampling_time = 10.  # time before command are changed[s]
+    #     heading_command = True  # if true: compute ang vel command from heading error
 
     #     class ranges:
-    #         lin_vel_x = [0, 0]  # 固定为直线行走，1.0 m/s
-    #         lin_vel_y = [0.0, 0.0]  # 横向速度为 0
-    #         ang_vel_yaw = [0.0, 0.0]  # 不需要角速度
-    #         heading = [0.0, 0.0]  # 航向保持不变
+    #         lin_vel_x = [-1.0, 1.0]  # min max [m/s]
+    #         lin_vel_y = [-1.0, 1.0]  # min max [m/s]
+    #         ang_vel_yaw = [-1, 1]  # min max [rad/s]
+    #         heading = [-3.14, 3.14]
+
+    # executing the command when play.py
+    class commands:
+        curriculum = False
+        max_curriculum = 1.
+        num_commands = 4
+        resampling_time = 10.
+        heading_command = False  # 不需要航向控制
+
+        class ranges:
+            lin_vel_x = [1.0, 1.0]  # 固定为直线行走，1.0 m/s
+            lin_vel_y = [0.0, 0.0]  # 横向速度为 0
+            ang_vel_yaw = [0.0, 0.0]  # 不需要角速度
+            heading = [0.0, 0.0]  # 航向保持不变
 
 
     class init_state:
@@ -177,25 +177,25 @@ class PointFootRoughCfg(BaseConfig):
 
             # success version 01
             termination = -0.0
-            tracking_lin_vel = 1.0
-            tracking_ang_vel = 0.7  # 增加角速度跟踪权重
-            lin_vel_z = -1.0
-            ang_vel_xy = -0.1
+            tracking_lin_vel = 3
+            tracking_ang_vel = 1  # 增加角速度跟踪权重
+            lin_vel_z = -0.5
+            ang_vel_xy = -0.05
             orientation = -1.0
             torques = -0.00001
             dof_vel = -0.
             dof_acc = -3e-7   # 略微增加关节加速度惩罚
-            base_height = -1.0 
-            # feet_air_time = 0.5
-            collision = -0.8     # 降低碰撞惩罚权重
+            base_height = -3.0 
+            feet_air_time = 10
+            unbalance_feet_air_time = -10
+            collision = -1     # 降低碰撞惩罚权重
             feet_stumble = -0.01 
-            action_rate = -0.05 # 增强动作平滑性权重
-            stand_still = -1.0
-            alignment = -0.5
-            foot_height = 1.0
-            # feet_swing_height = -20.0   # 增强步态奖励
-            contact = 0.18
-            # position_stability = -1
+            action_rate = -0.01 # 增强动作平滑性权重
+            stand_still = -4.0
+            alignment = -5
+            # foot_height = 1.0
+            # contact = 0.18
+            no_fly = 1.0
 
 
         base_height_target = 0.62

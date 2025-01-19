@@ -1202,17 +1202,23 @@ class PointFoot:
 
     # reward abput air time of feet
     def _reward_feet_air_time(self):
-        # Reward long steps
-        # Need to filter the contacts because the contact reporting of PhysX is unreliable on meshes
-        contact = self.contact_forces[:, self.feet_indices, 2] > 1. # contact on the feet with the ground
-        contact_filt = torch.logical_or(contact, self.last_contacts)    # filter contacts aganist unreliable contact reporting
-        self.last_contacts = contact
-        first_contact = (self.feet_air_time > 0.) * contact_filt
-        self.feet_air_time += self.dt
-        rew_airTime = torch.sum((self.feet_air_time - 0.5) * first_contact, dim=1) # reward only on first contact with the ground
-        rew_airTime *= torch.norm(self.commands[:, :2], dim=1) > 0.1 #no reward for zero command
-        self.feet_air_time *= ~contact_filt
+        # Reward steps between proper duration
+        rew_airTime_below_min = torch.sum(
+            torch.min(self.feet_air_time - self.cfg.rewards.min_feet_air_time,
+                      torch.zeros_like(self.feet_air_time)) * self.first_contact,
+            dim=1)
+        rew_airTime_above_max = torch.sum(
+            torch.min(self.cfg.rewards.max_feet_air_time - self.feet_air_time,
+                      torch.zeros_like(self.feet_air_time)) * self.first_contact,
+            dim=1)
+        rew_airTime = rew_airTime_below_min + rew_airTime_above_max
         return rew_airTime
+    
+    def _reward_unbalance_feet_air_time(self):
+        return torch.var(self.last_feet_air_time, dim=-1)
+
+    def _reward_unbalance_feet_height(self):
+        return torch.var(self.last_max_feet_height, dim=-1)
     
     def _reward_feet_stumble(self):
         # Penalize feet hitting vertical surfaces
@@ -1290,23 +1296,7 @@ class PointFoot:
             res += ~(contact ^ is_stance) # ^ is XOR operator
         return res
 
-    def _reward_position_stability(self):
-        # 获取当前线速度
-        lin_vel = self.base_lin_vel[:, :2]  # x 和 y 方向速度
-
-        # 获取机器人当前位置
-        current_position = self.root_states[:, :2]  # 提取 x 和 y 位置
-
-        # 初始参考位置 (需要在仿真初始化时记录一次)
-        if not hasattr(self, 'ref_position'):
-            self.ref_position = current_position.clone()
-
-        # 计算当前位置与参考位置的偏差
-        position_error = torch.norm(current_position - self.ref_position, dim=1)
-
-        # # 设置速度门槛，仅在机器人接近静止时计算位置偏移奖励
-        # speed_threshold = 0.1  # 速度阈值
-        # is_stationary = torch.norm(lin_vel, dim=1) < speed_threshold
-
-        # 奖励函数：位置偏移的平方，偏移越小奖励越高
-        return torch.square(position_error) * torch.norm(self.commands[:, :2], dim=1) < 0.1
+    def _reward_no_fly(self):
+        contacts = self.contact_forces[:, self.feet_indices, 2] > 0.1
+        single_contact = torch.sum(1. * contacts, dim=1) == 1
+        return 1. * single_contact
